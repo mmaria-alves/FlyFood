@@ -1,14 +1,15 @@
 import itertools
 
-def ler_matriz():
-    dimensoes = input().split()    # Lê a primeira linha para obter as dimensões
-    linhas = int(dimensoes[0])
-    colunas = int(dimensoes[1])
-    
-    matriz = []
-    for _ in range(linhas):     # Lê a matriz
-        linha = input().split()
-        matriz.append(linha)
+def ler_matriz(matriz):
+    with open(matriz, 'r') as f:
+        dimensoes = f.readline().split()    # Lê a primeira linha para obter as dimensões
+        linhas = int(dimensoes[0])
+        colunas = int(dimensoes[1])
+        
+        matriz = []
+        for _ in range(linhas):     # Lê a matriz
+            linha = f.readline().split()
+            matriz.append(linha)
     
     return matriz
 
@@ -47,7 +48,7 @@ def melhor_rota(pontos):
     return melhor_custo, ["R"] + list(melhor_ordem) + ["R"]
 
 if __name__ == '__main__':
-    matriz = ler_matriz()
+    matriz = ler_matriz('matriz.txt')
     pontos = encontrar_pontos(matriz)
     custo, rota = melhor_rota(pontos)
 
