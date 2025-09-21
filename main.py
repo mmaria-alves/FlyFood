@@ -4,7 +4,6 @@ def ler_matriz(matriz):
     with open(matriz, 'r') as f:
         dimensoes = f.readline().split()    # Lê a primeira linha para obter as dimensões
         linhas = int(dimensoes[0])
-        colunas = int(dimensoes[1])
         
         matriz = []
         for _ in range(linhas):     # Lê a matriz
