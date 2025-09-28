@@ -85,7 +85,7 @@ Se tiver dúvidas, sugestões ou encontrar algum problema, fale com a gente:
 
  ## 💻 Projeto realizado por
 
-[Laura](https://github.com/mlcordeiro) • [Maria Clara](https://github.com/mmaria-alves) • [Maria Eduarda](https://github.com/username-da-maria-eduarda) • [Ana Clara](https://github.com/eianaxz) • [Filipe](https://github.com/nilipe)
+[Laura](https://github.com/mlcordeiro) • [Maria Eduarda](https://github.com/mmaria-alves)  • [Ana Clara](https://github.com/eianaxz) • [Filipe](https://github.com/nilipe)
 
 
 
