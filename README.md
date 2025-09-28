@@ -34,9 +34,13 @@ Framework GUI
 Bibliotecas padrão (já incluídas no Python)
 
 ![sys](https://img.shields.io/badge/sys-Python%20Stdlib-lightgrey?style=for-the-badge&logo=python)     | import sys
+
 ![os](https://img.shields.io/badge/os-Python%20Stdlib-lightgrey?style=for-the-badge&logo=python)       | import os 
+
 ![typing](https://img.shields.io/badge/typing-Python%20Stdlib-lightgrey?style=for-the-badge&logo=python) | from typing import List, Dict, Tuple
+
 ![itertools](https://img.shields.io/badge/itertools-Python%20Stdlib-lightgrey?style=for-the-badge&logo=python) | import itertools 
+
 
 
 # Fluxo de Uso
@@ -54,11 +58,15 @@ Problema do Caixeiro Viajante (TSP)
 → O FlyFood resolve o TSP usando força bruta com permutações, considerando:
 
 → Distância Manhattan: |x1-x2| + |y1-y2|
+
 → Ponto fixo de origem: Sempre inicia e termina em 'R'
+
 → Otimização completa: Testa todas as permutações possíveis
 
 Complexidade
+
 → Tempo: O(n!) para n pontos de entrega
+
 → Espaço: O(n²) para armazenar a matriz
 
 Nota: Ideal para até ~10 pontos de entrega devido à complexidade fatorial.
@@ -71,8 +79,8 @@ Nota: Ideal para até ~10 pontos de entrega devido à complexidade fatorial.
 # 📞 Suporte
 
 Se tiver dúvidas, sugestões ou encontrar algum problema, fale com a gente:
- [![Email](ht
- tps://img.shields.io/badge/Email-Contato%20FlyFood-red?style=for-the-badge&logo=gmail)](mailto:flyfood.com.br@gmail.com)
+
+ [![Email](https://img.shields.io/badge/Email-Contato%20FlyFood-red?style=for-the-badge&logo=gmail)](mailto:flyfood.com.br@gmail.com)
 
 
 
