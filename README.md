@@ -24,6 +24,7 @@ O FlyFood é uma empresa de entregas rápidas utilizando drones e que, contém u
 
 # 📦 Instalação e Dependências 
 • Python 3.8 ou superior
+
 • Sistema operacional: Windows, Linux ou macOS
 
 # •  Bibliotecas Necessárias
