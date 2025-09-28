@@ -9,7 +9,7 @@
 # 📋 Sobre o Projeto
 O FlyFood é uma empresa de entregas rápidas utilizando drones e que, contém uma aplicação inteligente de otimização de rotas de entrega desenvolvida para resolver o problema do Caixeiro Viajante (TSP - Traveling Salesman Problem) aplicado ao contexto de entregas. O sistema calcula a rota mais eficiente entre múltiplos pontos de entrega, minimizando o custo total do percurso.
 
-🎯 Funcionalidades Principais
+# 🎯 Funcionalidades Principais
 📊 Leitura de Matrizes: Carrega matrizes de entrega a partir de arquivos de texto
 
 🧮 Algoritmo de Otimização: Implementa o algoritmo do Caixeiro Viajante para encontrar a rota ótima
