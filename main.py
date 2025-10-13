@@ -386,15 +386,18 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
                 self.tabela.setItem(i, j, item)
     
     def calcular_rota(self):
+        import time 
         try:
             if not self.otimizador.matriz or not self.otimizador.pontos:
                 raise ValueError("Matriz não carregada")
-            
+            inicio = time.time()
             custo, rota = self.otimizador.calcular(self.caminho_arquivo_atual)
-            
+            fim = time.time()
+            tempo_execucao = fim - inicio 
+          
             rota_formatada = " → ".join(rota)
             self.exibicao_rota.setText(f"📍 {rota_formatada}")
-            self.exibicao_custo.setText(f"💰 Custo Total: {custo}")
+            self.exibicao_custo.setText(f"💰 Custo Total: {custo}\n⌚ Tempo: {tempo_execucao: .6f} s")
             
         except Exception as e:
             QMessageBox.critical(self, "Erro", f"Erro ao calcular rota:\n{str(e)}")
@@ -414,3 +417,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
