@@ -42,6 +42,7 @@ Bibliotecas padrão (já incluídas no Python)
 
 ![itertools](https://img.shields.io/badge/itertools-Python%20Stdlib-lightgrey?style=for-the-badge&logo=python) | import itertools 
 
+![time](https://img.shields.io/badge/time-Python%20Stdlib-lightgrey?style=for-the-badge&logo=python)  | import time
 
 
 # Fluxo de Uso
