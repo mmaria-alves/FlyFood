@@ -371,7 +371,7 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
                 
                 if valor != "0":
                     item.setBackground(QColor(21, 101, 192))
-                    item.setForeground(QColor(255, 255, 255))
+                    item.setForeground(QColor(128, 128, 128))
                     fonte = QFont()
                     fonte.setBold(True)
                     fonte.setPointSize(12)
@@ -417,4 +417,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
