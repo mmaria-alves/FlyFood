@@ -1,7 +1,6 @@
 import sys
 import os
 from typing import List, Dict, Tuple
-import itertools
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QTableWidget, 
                              QTableWidgetItem, QLabel, QFileDialog, 
@@ -1010,4 +1009,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
     
