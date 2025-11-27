@@ -5,15 +5,42 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QTableWidget, 
                              QTableWidgetItem, QLabel, QFileDialog, 
                              QMessageBox, QHeaderView, QScrollArea)
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, QThread, Signal
 from PySide6.QtGui import QFont, QIcon, QPalette, QColor, QAction
 import random
+import time
+
+class CalculoThread(QThread):
+    """Thread separada para executar o cálculo pesado."""
+    resultado_calculado = Signal(tuple)  # (custo, rota, tempo)
+    erro_ocorrido = Signal(str)
+    
+    def __init__(self, otimizador, caminho_arquivo):
+        super().__init__()
+        self.otimizador = otimizador
+        self.caminho_arquivo = caminho_arquivo
+    
+    def run(self):
+        try:
+            inicio = time.time()
+            
+            custo, rota = self.otimizador.calcular(self.caminho_arquivo)
+            
+            fim = time.time()
+            tempo_execucao = fim - inicio
+            
+            self.resultado_calculado.emit((custo, rota, tempo_execucao))
+            
+        except Exception as e:
+            self.erro_ocorrido.emit(str(e))
 
 class OtimizadorRotas:
     def __init__(self):
         self.matriz = None
         self.pontos = None
-        self.distancias = None  # Matriz de distâncias para TSP
+        self.distancias = None
+        self.num_linhas = 0
+        self.num_colunas = 0
     
     def ler_arquivo(self, caminho: str) -> List[List[str]]:
         """Lê a matriz a partir de um arquivo de texto ou TSP."""
@@ -25,28 +52,35 @@ class OtimizadorRotas:
             return self.ler_matriz_txt(caminho)
     
     def ler_matriz_txt(self, caminho: str) -> List[List[str]]:
-        """Lê a matriz a partir de um arquivo de texto."""
+        """Lê a matriz a partir de um arquivo de texto no formato especificado."""
         try:
             with open(caminho, 'r', encoding='utf-8') as f:
                 linhas = f.readlines()
             
-            # Remover linhas vazias e espaços em branco
             linhas = [linha.strip() for linha in linhas if linha.strip()]
             
-            # Verificar se o arquivo começa com número de linhas (formato antigo)
-            if linhas[0].isdigit():
-                # Formato antigo: primeira linha é o número de linhas
-                num_linhas = int(linhas[0])
-                self.matriz = []
-                for i in range(1, min(num_linhas + 1, len(linhas))):
-                    linha_dados = linhas[i].split()
-                    self.matriz.append(linha_dados)
-            else:
-                # Formato novo: matriz direta
-                self.matriz = []
-                for linha in linhas:
-                    linha_dados = linha.split()
-                    self.matriz.append(linha_dados)
+            if not linhas:
+                raise ValueError("Arquivo vazio")
+            
+            # PRIMEIRA LINHA: número de linhas e colunas
+            primeira_linha = linhas[0].split()
+            if len(primeira_linha) < 2:
+                raise ValueError("Formato inválido: primeira linha deve conter número de linhas e colunas")
+            
+            self.num_linhas = int(primeira_linha[0])
+            self.num_colunas = int(primeira_linha[1])
+            
+            # Ler a matriz real (ignorando a primeira linha)
+            self.matriz = []
+            for i in range(1, self.num_linhas + 1):
+                if i >= len(linhas):
+                    raise ValueError(f"Linha {i} faltando no arquivo")
+                
+                linha_dados = linhas[i].split()
+                if len(linha_dados) != self.num_colunas:
+                    raise ValueError(f"Linha {i} tem número incorreto de colunas. Esperado: {self.num_colunas}, Encontrado: {len(linha_dados)}")
+                
+                self.matriz.append(linha_dados)
             
             return self.matriz
             
@@ -55,60 +89,82 @@ class OtimizadorRotas:
     
     def ler_arquivo_tsp(self, caminho: str) -> List[List[str]]:
         """Lê um arquivo TSP e converte para matriz."""
-        with open(caminho, 'r') as f:
-            linhas = f.readlines()
-        
-        dimensao = 0
-        formato_peso = ""
-        secao_pesos = False
-        dados_pesos = []
-        
-        for linha in linhas:
-            linha = linha.strip()
+        try:
+            with open(caminho, 'r') as f:
+                linhas = f.readlines()
             
-            if linha.startswith('DIMENSION'):
-                dimensao = int(linha.split(':')[1].strip())
-            elif linha.startswith('EDGE_WEIGHT_FORMAT'):
-                formato_peso = linha.split(':')[1].strip()
-            elif linha.startswith('EDGE_WEIGHT_SECTION'):
-                secao_pesos = True
-                continue
-            elif linha.startswith('EOF') or linha.startswith('END'):
-                break
-            elif secao_pesos and linha:
-                # Coletar todos os números da seção de pesos
-                dados_pesos.extend([int(x) for x in linha.split() if x])
-        
-        if dimensao == 0:
-            raise ValueError("Dimensão não especificada no arquivo TSP")
-        
-        if not dados_pesos:
-            raise ValueError("Não foi possível ler dados de distância do arquivo TSP")
-        
-        # Construir matriz de distâncias completa
-        self.distancias = self._construir_matriz_distancias(dimensao, dados_pesos, formato_peso)
-        
-        # Criar matriz visual para exibição (apenas para mostrar na interface)
-        # Para arquivos TSP, criamos uma matriz onde 'R' é o ponto 0 e os demais são numerados
-        self.matriz = self._criar_matriz_visual(dimensao)
-        
-        return self.matriz
+            dimensao = 0
+            formato_peso = ""
+            secao_pesos = False
+            dados_pesos = []
+            
+            for linha in linhas:
+                linha = linha.strip()
+                
+                if linha.startswith('DIMENSION'):
+                    dimensao = int(linha.split(':')[1].strip())
+                elif linha.startswith('EDGE_WEIGHT_FORMAT'):
+                    formato_peso = linha.split(':')[1].strip()
+                elif linha.startswith('EDGE_WEIGHT_SECTION'):
+                    secao_pesos = True
+                    continue
+                elif linha.startswith('EOF') or linha.startswith('END'):
+                    break
+                elif secao_pesos and linha:
+                    dados_pesos.extend([int(x) for x in linha.split() if x])
+            
+            if dimensao == 0:
+                raise ValueError("Dimensão não especificada no arquivo TSP")
+            
+            if not dados_pesos:
+                raise ValueError("Não foi possível ler dados de distância do arquivo TSP")
+            
+            # Construir matriz de distâncias completa
+            self.distancias = self._construir_matriz_distancias(dimensao, dados_pesos, formato_peso)
+            
+            print(f"Arquivo TSP carregado: {dimensao} pontos")
+            
+            # Para arquivos TSP, criar pontos virtuais para compatibilidade
+            self.pontos = {}
+            for i in range(dimensao):
+                if i == 0:
+                    self.pontos['R'] = (0, 0)  # Ponto de origem
+                else:
+                    self.pontos[str(i)] = (i, 0)  # Demais pontos
+            
+            # Criar uma matriz visual simples para TSP
+            self.matriz = [['0' for _ in range(min(dimensao, 10))] for _ in range(min(dimensao, 10))]
+            self.matriz[0][0] = 'R'  # Apenas mostrar o ponto de origem
+            
+            self.num_linhas = len(self.matriz)
+            self.num_colunas = len(self.matriz[0])
+            
+            return self.matriz
+            
+        except Exception as e:
+            raise ValueError(f"Erro ao ler arquivo TSP: {str(e)}")
     
     def _construir_matriz_distancias(self, n: int, dados: List[int], formato: str) -> List[List[int]]:
         """Constrói a matriz de distâncias completa a partir dos dados."""
         matriz = [[0] * n for _ in range(n)]
         
         if formato == 'UPPER_ROW':
-            # Formato UPPER_ROW: apenas a parte superior direita (sem diagonal)
             idx = 0
             for i in range(n):
                 for j in range(i + 1, n):
                     if idx < len(dados):
                         matriz[i][j] = dados[idx]
-                        matriz[j][i] = dados[idx]  # Matriz simétrica
+                        matriz[j][i] = dados[idx]
+                        idx += 1
+        elif formato == 'FULL_MATRIX':
+            idx = 0
+            for i in range(n):
+                for j in range(n):
+                    if idx < len(dados):
+                        matriz[i][j] = dados[idx]
                         idx += 1
         else:
-            # Para outros formats, assumir matriz completa
+            # Para outros formatos, assumir matriz completa por linha
             idx = 0
             for i in range(n):
                 for j in range(n):
@@ -118,52 +174,37 @@ class OtimizadorRotas:
         
         return matriz
     
-    def _criar_matriz_visual(self, n: int) -> List[List[str]]:
-        """Cria uma matriz visual para exibição na interface."""
-        # Criar uma matriz quadrada grande o suficiente para acomodar todos os pontos
-        tamanho = max(n, 10)  # Mínimo de 10x10 para boa visualização
-        matriz = [['0' for _ in range(tamanho)] for _ in range(tamanho)]
-        
-        # Distribuir os pontos na matriz
-        for i in range(n):
-            linha = i % tamanho
-            coluna = i % tamanho
-            if i == 0:
-                matriz[linha][coluna] = 'R'  # Ponto de origem
-            else:
-                matriz[linha][coluna] = str(i)  # Demais pontos
-        
-        return matriz
-    
     def encontrar_pontos(self, matriz: List[List[str]]) -> Dict[str, Tuple[int, int]]:
-        """Encontra todos os pontos relevantes da matriz."""
-        self.pontos = {
-            valor: (i, j)
-            for i, linha in enumerate(matriz)
-            for j, valor in enumerate(linha)
-            if valor != "0"
-        }
+        """Encontra todos os pontos relevantes."""
+        # Para TSP, os pontos já foram criados no ler_arquivo_tsp
+        if self.distancias is not None:
+            return self.pontos
+        
+        # Para arquivos TXT, encontrar pontos na matriz
+        self.pontos = {}
+        for i, linha in enumerate(matriz):
+            for j, valor in enumerate(linha):
+                if valor != "0":
+                    self.pontos[valor] = (i, j)
         return self.pontos
     
-    def distancia(self, p1: Tuple[int, ...], p2: Tuple[int, ...]) -> int:
+    def distancia(self, p1: Tuple[int, int], p2: Tuple[int, int]) -> int:
         """Calcula a distância entre dois pontos."""
-        # Se temos matriz de distâncias TSP, usar ela
         if self.distancias is not None:
-            # Converter coordenadas da matriz visual para índices da matriz de distâncias
+            # Para TSP, usar a matriz de distâncias
             idx1 = self._coordenada_para_indice(p1)
             idx2 = self._coordenada_para_indice(p2)
             if idx1 is not None and idx2 is not None:
                 return self.distancias[idx1][idx2]
         
-        # Fallback para distância Manhattan (para arquivos txt)
-        return sum(abs(a - b) for a, b in zip(p1, p2))
+        # Para arquivos TXT, usar distância Manhattan
+        return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1])
     
     def _coordenada_para_indice(self, coord: Tuple[int, int]) -> int:
-        """Converte coordenada da matriz visual para índice na matriz de distâncias TSP."""
+        """Converte coordenada para índice na matriz de distâncias TSP."""
         if not self.pontos:
             return None
         
-        # Encontrar qual ponto corresponde a estas coordenadas
         for ponto, ponto_coord in self.pontos.items():
             if ponto_coord == coord:
                 if ponto == 'R':
@@ -172,62 +213,60 @@ class OtimizadorRotas:
                     try:
                         return int(ponto)
                     except ValueError:
-                        # Se não for número, usar mapeamento alfabético
-                        return ord(ponto) - ord('A') + 1
+                        return ord(ponto.upper()) - ord('A') + 1
         return None
     
     def melhor_rota(self, pontos: Dict[str, Tuple[int, int]]) -> Tuple[int, List[str]]:
-        """Encontra a melhor rota usando algoritmo genético."""
-        # Para arquivos TXT, não usar matriz de distâncias TSP
-        if self.distancias is not None:
-            # Converter pontos para índices numéricos (para TSP)
-            indices_pontos = {}
-            for ponto, coord in pontos.items():
-                if ponto == 'R':
-                    indices_pontos[0] = coord
-                else:
-                    try:
-                        indices_pontos[int(ponto)] = coord
-                    except ValueError:
-                        # Se for letra, converter para número
-                        indices_pontos[ord(ponto) - ord('A') + 1] = coord
-            
-            origem = 0
-            entregas = [i for i in indices_pontos.keys() if i != origem]
+        """Encontra a melhor rota usando ALGORITMO GENÉTICO."""
+        
+        origem = 'R'
+        entregas = [p for p in pontos.keys() if p != origem]
+        
+        if not entregas:
+            return 0, [origem, origem]
+        
+        num_pontos = len(entregas)
+        
+        # PARÂMETROS OTIMIZADOS
+        if num_pontos <= 10:
+            tamanho_pop = 100
+            geracoes = 500
+        elif num_pontos <= 30:
+            tamanho_pop = 200
+            geracoes = 1000
+        elif num_pontos <= 100:
+            tamanho_pop = 300
+            geracoes = 1500
         else:
-            # Para arquivos TXT, usar os pontos diretamente
-            origem = pontos["R"]
-            entregas = [p for p in pontos.keys() if p != "R"]
-            indices_pontos = pontos  # Usar o dicionário de pontos diretamente
+            tamanho_pop = 400
+            geracoes = 2000
+            
+        taxa_mutacao = 0.2
+        taxa_crossover = 0.85
 
-        # Parâmetros do Algoritmo Genético
-        tamanho_pop = 100
-        geracoes = 500
-        taxa_mutacao = 0.15
-        elitismo = True
-
-        # Função fitness
+        # FUNÇÃO FITNESS
         def fitness(rota):
             custo = 0
+            # Para TSP, usar índices numéricos
             if self.distancias is not None:
-                # Para TSP: usar índices numéricos
-                atual = origem
+                atual = 0  # R é o índice 0
                 for proximo in rota:
-                    custo += self.distancia(indices_pontos[atual], indices_pontos[proximo])
-                    atual = proximo
-                # Voltar para a origem
-                custo += self.distancia(indices_pontos[atual], indices_pontos[origem])
+                    proximo_idx = int(proximo) if proximo != 'R' else 0
+                    custo += self.distancias[atual][proximo_idx]
+                    atual = proximo_idx
+                # Voltar para origem
+                custo += self.distancias[atual][0]
             else:
-                # Para TXT: usar pontos diretamente
-                atual = origem
+                # Para TXT
+                atual = pontos[origem]
                 for ponto in rota:
                     custo += self.distancia(atual, pontos[ponto])
                     atual = pontos[ponto]
-                # Voltar para a origem
-                custo += self.distancia(atual, origem)
+                custo += self.distancia(atual, pontos[origem])
             return custo
 
-        # Geração da população inicial
+        # ========== ALGORITMO GENÉTICO ==========
+        
         def gerar_populacao_inicial():
             populacao = []
             for _ in range(tamanho_pop):
@@ -236,90 +275,136 @@ class OtimizadorRotas:
                 populacao.append(individuo)
             return populacao
 
-        # Seleção por torneio
-        def selecao_torneio(populacao):
-            tamanho_torneio = 3
+        def selecao_torneio(populacao, tamanho_torneio=5):
             competidores = random.sample(populacao, tamanho_torneio)
             return min(competidores, key=fitness)
 
-        # Crossover OX (Order Crossover)
         def crossover_ox(pai1, pai2):
             size = len(pai1)
-            start, end = sorted(random.sample(range(size), 2))
+            if size <= 2:
+                return pai1.copy()
             
+            start, end = sorted(random.sample(range(size), 2))
             filho = [None] * size
             filho[start:end] = pai1[start:end]
             
             pos = end
             for gene in pai2:
                 if gene not in filho:
-                    if pos >= size:
-                        pos = 0
+                    if pos >= size: pos = 0
                     filho[pos] = gene
                     pos += 1
             return filho
 
-        # Mutação por troca
         def mutacao_troca(individuo):
-            if random.random() < taxa_mutacao:
+            if random.random() < taxa_mutacao and len(individuo) >= 2:
                 i, j = random.sample(range(len(individuo)), 2)
                 individuo[i], individuo[j] = individuo[j], individuo[i]
             return individuo
 
-        # Mutação por inversão
         def mutacao_inversao(individuo):
-            if random.random() < taxa_mutacao:
+            if random.random() < taxa_mutacao and len(individuo) >= 2:
                 i, j = sorted(random.sample(range(len(individuo)), 2))
                 individuo[i:j] = reversed(individuo[i:j])
             return individuo
 
-        # Algoritmo Genético principal
+        # BUSCA LOCAL 2-OPT
+        def busca_local_2opt(individuo):
+            if len(individuo) < 4:
+                return individuo
+                
+            melhor_custo = fitness(individuo)
+            melhorado = True
+            iteracoes = 0
+            
+            while melhorado and iteracoes < 10:
+                melhorado = False
+                for i in range(len(individuo) - 1):
+                    for j in range(i + 2, len(individuo)):
+                        nova_rota = individuo.copy()
+                        nova_rota[i:j] = reversed(nova_rota[i:j])
+                        
+                        novo_custo = fitness(nova_rota)
+                        if novo_custo < melhor_custo:
+                            individuo = nova_rota
+                            melhor_custo = novo_custo
+                            melhorado = True
+                            break
+                    if melhorado:
+                        break
+                iteracoes += 1
+            return individuo
+
+        # ALGORITMO GENÉTICO PRINCIPAL
         populacao = gerar_populacao_inicial()
         melhor_global = min(populacao, key=fitness)
         melhor_fitness = fitness(melhor_global)
-
+        
+        print(f"Calculando rota para {num_pontos} pontos...")
+        print(f"Melhor fitness inicial: {melhor_fitness}")
+        
+        ultima_melhoria = 0
+        
         for geracao in range(geracoes):
             nova_populacao = []
             
-            # Elitismo
-            if elitismo:
-                nova_populacao.append(melhor_global)
+            # ELITISMO
+            populacao_ordenada = sorted(populacao, key=fitness)
+            num_elite = max(1, tamanho_pop // 10)
+            nova_populacao.extend(populacao_ordenada[:num_elite])
             
-            # Preencher o resto da população
+            # GERAR NOVA POPULAÇÃO
             while len(nova_populacao) < tamanho_pop:
                 pai1 = selecao_torneio(populacao)
                 pai2 = selecao_torneio(populacao)
                 
-                # Crossover
-                if random.random() < 0.8:  # 80% de chance de crossover
+                if random.random() < taxa_crossover:
                     filho = crossover_ox(pai1, pai2)
                 else:
-                    filho = pai1.copy() if random.random() < 0.5 else pai2.copy()
+                    filho = pai1.copy()
                 
-                # Mutação
+                # MUTAÇÃO
                 if random.random() < 0.5:
                     filho = mutacao_troca(filho)
                 else:
                     filho = mutacao_inversao(filho)
                 
+                # BUSCA LOCAL APENAS EM ALGUNS FILHOS
+                if random.random() < 0.1:
+                    filho = busca_local_2opt(filho)
+                
                 nova_populacao.append(filho)
             
             populacao = nova_populacao
             
-            # Atualizar melhor global
+            # ATUALIZAR MELHOR GLOBAL
             melhor_atual = min(populacao, key=fitness)
             fitness_atual = fitness(melhor_atual)
             
             if fitness_atual < melhor_fitness:
                 melhor_global = melhor_atual
                 melhor_fitness = fitness_atual
+                ultima_melhoria = geracao
+                
+                if geracao % 100 == 0:
+                    print(f"Geracao {geracao}: Fitness = {melhor_fitness}")
+            
+            # CRITÉRIO DE PARADA PARA PROBLEMAS GRANDES
+            if num_pontos > 50 and geracao - ultima_melhoria > 200 and geracao > 500:
+                print(f"Convergencia antecipada na geracao {geracao}")
+                break
 
-        # Converter rota de volta para formato de string
+        # FASE FINAL DE REFINAMENTO
+        print("Aplicando refinamento final...")
+        melhor_global = busca_local_2opt(melhor_global)
+        melhor_fitness = fitness(melhor_global)
+        
+        print(f"MELHOR FITNESS FINAL: {melhor_fitness}")
+        
+        # Converter rota para formato de saída
         if self.distancias is not None:
-            # Para TSP: converter índices numéricos de volta para strings
             rota_strings = ['R'] + [str(p) for p in melhor_global] + ['R']
         else:
-            # Para TXT: já temos strings
             rota_strings = ['R'] + melhor_global + ['R']
             
         return melhor_fitness, rota_strings
@@ -331,7 +416,7 @@ class OtimizadorRotas:
             pontos = self.encontrar_pontos(matriz)
             
             if "R" not in pontos:
-                raise ValueError("Ponto de origem 'R' não encontrado na matriz.")
+                raise ValueError("Ponto de origem 'R' não encontrado.")
             
             return self.melhor_rota(pontos)
             
@@ -377,7 +462,7 @@ class BotaoEpico(QPushButton):
                     border: 1px solid #616161;
                 }
             """)
-        else:  # azul
+        else:
             self.setStyleSheet("""
                 QPushButton {
                     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
@@ -409,13 +494,13 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
         super().__init__()
         self.otimizador = OtimizadorRotas()
         self.caminho_arquivo_atual = ""
+        self.calculo_thread = None
         self.initUI()
         
     def initUI(self):
         self.setWindowTitle('FLYFOOD • Otimizador de Rotas Inteligente')
-        self.setFixedSize(1100, 800)  # Aumentei a altura para caber tudo
+        self.setFixedSize(1100, 800)
         
-        # Configurar fonte global - FUNDO BRANCO
         self.setStyleSheet("""
             QMainWindow {
                 background: #FFFFFF;
@@ -427,7 +512,6 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
             }
         """)
         
-        # Definir o ícone da janela
         self.definir_icone_janela()
         
         widget_central = QWidget()
@@ -455,13 +539,10 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
         widget_central.setLayout(layout)
     
     def definir_icone_janela(self):
-        """Define o ícone da janela a partir de um arquivo de imagem."""
         try:
             caminho_icone = "flyfood icon.png"
             if os.path.exists(caminho_icone):
                 self.setWindowIcon(QIcon(caminho_icone))
-            else:
-                print(f"Arquivo de ícone não encontrado: {caminho_icone}")
         except Exception as e:
             print(f"Erro ao carregar ícone: {e}")
     
@@ -538,7 +619,7 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
         
         botao_carregar = BotaoEpico("CARREGAR ARQUIVO", "azul")
         botao_carregar.clicked.connect(self.carregar_arquivo)
-        botao_carregar.setFixedWidth(180)  # Largura ajustada
+        botao_carregar.setFixedWidth(180)
         
         layout.addWidget(self.rotulo_arquivo)
         layout.addWidget(botao_carregar)
@@ -564,7 +645,6 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
             }
         """)
         
-        # Container da tabela com scroll
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
@@ -615,7 +695,6 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
         scroll_area.setMinimumHeight(200)
         scroll_area.setMaximumHeight(350)
         
-        # Widget container para a tabela
         table_container = QWidget()
         table_layout = QVBoxLayout(table_container)
         table_layout.setContentsMargins(0, 0, 0, 0)
@@ -661,7 +740,6 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
         self.tabela.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.tabela.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         
-        # Configurar a tabela para ter scroll interno
         self.tabela.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.tabela.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         
@@ -711,7 +789,6 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
             }
         """)
         
-        # Container principal para resultados
         container_principal = QWidget()
         container_principal.setStyleSheet("""
             QWidget {
@@ -725,7 +802,6 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
         layout_principal.setContentsMargins(20, 15, 20, 15)
         layout_principal.setSpacing(15)
         
-        # Rota
         container_rota = QWidget()
         container_rota.setStyleSheet("""
             QWidget {
@@ -770,16 +846,14 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
         layout_rota.addWidget(rotulo_rota)
         layout_rota.addWidget(self.exibicao_rota)
         
-        # Métricas - Container com mais espaço
         container_metricas = QWidget()
-        container_metricas.setMinimumHeight(100)  # Altura mínima garantida
+        container_metricas.setMinimumHeight(100)
         layout_metricas = QHBoxLayout(container_metricas)
         layout_metricas.setContentsMargins(0, 0, 0, 0)
         layout_metricas.setSpacing(15)
         
-        # Custo - Container maior
         container_custo = QWidget()
-        container_custo.setMinimumWidth(200)  # Largura mínima garantida
+        container_custo.setMinimumWidth(200)
         container_custo.setStyleSheet("""
             QWidget {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
@@ -816,15 +890,14 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
             }
         """)
         self.exibicao_custo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.exibicao_custo.setMinimumHeight(35)  # Altura mínima para o valor
+        self.exibicao_custo.setMinimumHeight(35)
         
         layout_custo.addWidget(rotulo_custo)
         layout_custo.addWidget(self.exibicao_custo)
         layout_custo.addStretch()
         
-        # Tempo - Container maior
         container_tempo = QWidget()
-        container_tempo.setMinimumWidth(200)  # Largura mínima garantida
+        container_tempo.setMinimumWidth(200)
         container_tempo.setStyleSheet("""
             QWidget {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
@@ -861,7 +934,7 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
             }
         """)
         self.exibicao_tempo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.exibicao_tempo.setMinimumHeight(35)  # Altura mínima para o valor
+        self.exibicao_tempo.setMinimumHeight(35)
         
         layout_tempo.addWidget(rotulo_tempo)
         layout_tempo.addWidget(self.exibicao_tempo)
@@ -890,8 +963,8 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
             
             if caminho_arquivo:
                 self.caminho_arquivo_atual = caminho_arquivo
-                self.otimizador.ler_arquivo(caminho_arquivo)
-                self.otimizador.encontrar_pontos(self.otimizador.matriz)
+                matriz = self.otimizador.ler_arquivo(caminho_arquivo)
+                pontos = self.otimizador.encontrar_pontos(matriz)
                 
                 nome_arquivo = os.path.basename(caminho_arquivo)
                 self.rotulo_arquivo.setText(f"ARQUIVO CARREGADO: {nome_arquivo}")
@@ -923,11 +996,9 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
                 
                 if valor != "0":
                     if valor == "R":
-                        # Ponto de origem - laranja
                         item.setBackground(QColor(255, 61, 0))
                         item.setForeground(QColor(255, 255, 255))
                     else:
-                        # Pontos de entrega - azul
                         item.setBackground(QColor(2, 119, 189))
                         item.setForeground(QColor(255, 255, 255))
                     
@@ -936,7 +1007,6 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
                     fonte.setPointSize(11)
                     item.setFont(fonte)
                 else:
-                    # Células vazias
                     item.setBackground(QColor(250, 250, 250))
                     item.setForeground(QColor(100, 100, 100))
                     fonte = QFont()
@@ -946,23 +1016,44 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
                 self.tabela.setItem(i, j, item)
     
     def calcular_rota(self):
-        import time 
+        """Inicia o cálculo em uma thread separada."""
         try:
-            if not self.otimizador.matriz or not self.otimizador.pontos:
+            if not self.otimizador.matriz and not self.otimizador.distancias:
                 raise ValueError("Arquivo não carregado")
             
-            inicio = time.time()
-            custo, rota = self.otimizador.calcular(self.caminho_arquivo_atual)
-            fim = time.time()
-            tempo_execucao = fim - inicio 
-          
-            rota_formatada = " → ".join(rota)
-            self.exibicao_rota.setText(rota_formatada)
-            self.exibicao_custo.setText(f"{custo}")
-            self.exibicao_tempo.setText(f"{tempo_execucao:.4f}s")
+            # Desabilitar botão durante o cálculo
+            self.botao_calcular.setEnabled(False)
+            self.exibicao_rota.setText("Calculando rota... Aguarde!")
+            self.exibicao_custo.setText("...")
+            self.exibicao_tempo.setText("...")
+            
+            # Criar e iniciar thread
+            self.calculo_thread = CalculoThread(self.otimizador, self.caminho_arquivo_atual)
+            self.calculo_thread.resultado_calculado.connect(self.mostrar_resultado)
+            self.calculo_thread.erro_ocorrido.connect(self.mostrar_erro)
+            self.calculo_thread.start()
             
         except Exception as e:
-            QMessageBox.critical(self, "Erro", f"Erro ao calcular rota:\n{str(e)}")
+            QMessageBox.critical(self, "Erro", f"Erro ao iniciar cálculo:\n{str(e)}")
+            self.botao_calcular.setEnabled(True)
+    
+    def mostrar_resultado(self, resultado):
+        """Mostra o resultado do cálculo na interface."""
+        custo, rota, tempo_execucao = resultado
+        
+        rota_formatada = " → ".join(rota)
+        self.exibicao_rota.setText(rota_formatada)
+        self.exibicao_custo.setText(f"{custo}")
+        self.exibicao_tempo.setText(f"{tempo_execucao:.2f}s")
+        
+        # Reabilitar botão
+        self.botao_calcular.setEnabled(True)
+    
+    def mostrar_erro(self, mensagem_erro):
+        """Mostra erro ocorrido durante o cálculo."""
+        QMessageBox.critical(self, "Erro no Cálculo", f"Erro durante o cálculo:\n{mensagem_erro}")
+        self.botao_calcular.setEnabled(True)
+        self.exibicao_rota.setText("Erro no cálculo. Verifique o console.")
     
     def limpar_resultados(self):
         self.exibicao_rota.setText("A rota calculada será exibida aqui após o processamento")
@@ -973,7 +1064,6 @@ def main():
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
     
-    # Definir estilo geral da aplicação
     app.setStyleSheet("""
         QMessageBox {
             background: #FFFFFF;
@@ -1010,4 +1100,3 @@ def main():
 if __name__ == '__main__':
     main()
 
-    
