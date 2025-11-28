@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="flyfood icon.png" alt="FlyFood Logo" width="200"/>
+  <img src="imagens/flyfood icon.png" alt="FlyFood Logo" width="200"/>
 </p>
 
 <h1 align="center">🚚 FlyFood – Otimizador de Rotas de Entrega</h1>
