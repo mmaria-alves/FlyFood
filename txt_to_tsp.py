@@ -1,6 +1,7 @@
 import string
 
 def matriz_para_tsplib(caminho_txt, caminho_tsp, nome="instancia_matriz"):
+    '''Converte as matrizes de .txt para .tsp'''
     with open(caminho_txt, 'r') as f:
         linhas = [linha.strip() for linha in f.readlines() if linha.strip()]
 
@@ -40,6 +41,3 @@ def matriz_para_tsplib(caminho_txt, caminho_tsp, nome="instancia_matriz"):
     print("Pontos convertidos:")
     for i, c in enumerate(chaves, start=1):
         print(f"{i}: {c} -> {coords[i-1]}")
-
-
-#matriz_para_tsplib("lalalala.txt", "lalatsp.tsp")

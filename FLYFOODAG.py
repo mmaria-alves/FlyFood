@@ -540,7 +540,7 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
     
     def definir_icone_janela(self):
         try:
-            caminho_icone = "flyfood icon.png"
+            caminho_icone = "imagens/flyfood icon.png"
             if os.path.exists(caminho_icone):
                 self.setWindowIcon(QIcon(caminho_icone))
         except Exception as e:
@@ -712,6 +712,7 @@ class AplicacaoOtimizadorEntrega(QMainWindow):
                 font-family: 'Segoe UI', sans-serif;
             }
             QTableWidget::item {
+                color: #333333;
                 padding: 8px;
                 border: 1px solid #EEEEEE;
                 text-align: center;
@@ -1099,4 +1100,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
