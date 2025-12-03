@@ -227,22 +227,25 @@ class OtimizadorRotas:
         
         num_pontos = len(entregas)
         
-        # PARÂMETROS OTIMIZADOS
+        # ========== PARÂMETROS AJUSTADOS PARA COMPENSAR REMOÇÃO DO 2-OPT ==========
         if num_pontos <= 10:
-            tamanho_pop = 100
-            geracoes = 500
+            tamanho_pop = 150  # Aumentado de 100 para 150
+            geracoes = 600     # Aumentado de 500 para 600
         elif num_pontos <= 30:
-            tamanho_pop = 200
-            geracoes = 1000
+            tamanho_pop = 300  # Aumentado de 200 para 300
+            geracoes = 1200    # Aumentado de 1000 para 1200
         elif num_pontos <= 100:
-            tamanho_pop = 300
-            geracoes = 1500
+            tamanho_pop = 400  # Aumentado de 300 para 400
+            geracoes = 1800    # Aumentado de 1500 para 1800
         else:
-            tamanho_pop = 400
-            geracoes = 2000
+            tamanho_pop = 500  # Aumentado de 400 para 500
+            geracoes = 2500    # Aumentado de 2000 para 2500
             
-        taxa_mutacao = 0.2
-        taxa_crossover = 0.85
+        # Taxas ajustadas para maior exploração
+        taxa_mutacao = 0.35    # Aumentado de 0.2 para 0.35
+        taxa_crossover = 0.9   # Aumentado de 0.85 para 0.9
+        taxa_elitismo = 0.08   # REDUZIDO: 8% de elitismo (era ~10% implícito)
+        tamanho_torneio = 7    # Aumentado de 5 para 7 (mais competição)
 
         # FUNÇÃO FITNESS
         def fitness(rota):
@@ -275,11 +278,13 @@ class OtimizadorRotas:
                 populacao.append(individuo)
             return populacao
 
-        def selecao_torneio(populacao, tamanho_torneio=5):
-            competidores = random.sample(populacao, tamanho_torneio)
+        def selecao_torneio(populacao, k=tamanho_torneio):
+            """Seleção por torneio com tamanho ajustável."""
+            competidores = random.sample(populacao, k)
             return min(competidores, key=fitness)
 
         def crossover_ox(pai1, pai2):
+            """Crossover Order (OX) - Mantido mas será usado com mais frequência."""
             size = len(pai1)
             if size <= 2:
                 return pai1.copy()
@@ -297,42 +302,26 @@ class OtimizadorRotas:
             return filho
 
         def mutacao_troca(individuo):
+            """Mutação por troca com taxa aumentada."""
             if random.random() < taxa_mutacao and len(individuo) >= 2:
                 i, j = random.sample(range(len(individuo)), 2)
                 individuo[i], individuo[j] = individuo[j], individuo[i]
             return individuo
 
         def mutacao_inversao(individuo):
+            """Mutação por inversão com taxa aumentada."""
             if random.random() < taxa_mutacao and len(individuo) >= 2:
                 i, j = sorted(random.sample(range(len(individuo)), 2))
                 individuo[i:j] = reversed(individuo[i:j])
             return individuo
 
-        # BUSCA LOCAL 2-OPT
-        def busca_local_2opt(individuo):
-            if len(individuo) < 4:
-                return individuo
-                
-            melhor_custo = fitness(individuo)
-            melhorado = True
-            iteracoes = 0
-            
-            while melhorado and iteracoes < 10:
-                melhorado = False
-                for i in range(len(individuo) - 1):
-                    for j in range(i + 2, len(individuo)):
-                        nova_rota = individuo.copy()
-                        nova_rota[i:j] = reversed(nova_rota[i:j])
-                        
-                        novo_custo = fitness(nova_rota)
-                        if novo_custo < melhor_custo:
-                            individuo = nova_rota
-                            melhor_custo = novo_custo
-                            melhorado = True
-                            break
-                    if melhorado:
-                        break
-                iteracoes += 1
+        def mutacao_scramble(individuo):
+            """Nova mutação: embaralhamento de um segmento."""
+            if random.random() < taxa_mutacao * 0.5 and len(individuo) >= 3:
+                i, j = sorted(random.sample(range(len(individuo)), 2))
+                segmento = individuo[i:j]
+                random.shuffle(segmento)
+                individuo[i:j] = segmento
             return individuo
 
         # ALGORITMO GENÉTICO PRINCIPAL
@@ -342,44 +331,58 @@ class OtimizadorRotas:
         
         print(f"Calculando rota para {num_pontos} pontos...")
         print(f"Melhor fitness inicial: {melhor_fitness}")
+        print(f"Configuração AG: População={tamanho_pop}, Gerações={geracoes}")
+        print(f"Taxas: Mutação={taxa_mutacao}, Crossover={taxa_crossover}, Elitismo={taxa_elitismo}")
         
         ultima_melhoria = 0
+        historico_fitness = [melhor_fitness]
         
         for geracao in range(geracoes):
             nova_populacao = []
             
-            # ELITISMO
+            # ELITISMO REDUZIDO PARA MANTER DIVERSIDADE
             populacao_ordenada = sorted(populacao, key=fitness)
-            num_elite = max(1, tamanho_pop // 10)
+            num_elite = max(1, int(tamanho_pop * taxa_elitismo))  # Apenas 1-8%
             nova_populacao.extend(populacao_ordenada[:num_elite])
             
             # GERAR NOVA POPULAÇÃO
             while len(nova_populacao) < tamanho_pop:
+                # Seleção mais competitiva
                 pai1 = selecao_torneio(populacao)
                 pai2 = selecao_torneio(populacao)
                 
                 if random.random() < taxa_crossover:
                     filho = crossover_ox(pai1, pai2)
                 else:
-                    filho = pai1.copy()
+                    # Clonar o melhor dos dois pais (não apenas um)
+                    filho = pai1 if fitness(pai1) < fitness(pai2) else pai2
+                    filho = filho.copy()
                 
-                # MUTAÇÃO
-                if random.random() < 0.5:
-                    filho = mutacao_troca(filho)
+                # APLICAR MÚLTIPLAS MUTAÇÕES COM PROBABILIDADES DIFERENTES
+                # Chance maior de mutação para compensar falta de 2-opt
+                if random.random() < 0.7:  # 70% de chance de mutação
+                    tipo_mutacao = random.random()
+                    if tipo_mutacao < 0.4:
+                        filho = mutacao_troca(filho)
+                    elif tipo_mutacao < 0.7:
+                        filho = mutacao_inversao(filho)
+                    else:
+                        filho = mutacao_scramble(filho)
+                
+                # CRIAR ALGUNS INDIVÍDUOS ALEATÓRIOS PARA DIVERSIDADE
+                if random.random() < 0.05 and len(nova_populacao) > tamanho_pop * 0.8:
+                    individuo_aleatorio = entregas.copy()
+                    random.shuffle(individuo_aleatorio)
+                    nova_populacao.append(individuo_aleatorio)
                 else:
-                    filho = mutacao_inversao(filho)
-                
-                # BUSCA LOCAL APENAS EM ALGUNS FILHOS
-                if random.random() < 0.1:
-                    filho = busca_local_2opt(filho)
-                
-                nova_populacao.append(filho)
+                    nova_populacao.append(filho)
             
             populacao = nova_populacao
             
             # ATUALIZAR MELHOR GLOBAL
             melhor_atual = min(populacao, key=fitness)
             fitness_atual = fitness(melhor_atual)
+            historico_fitness.append(fitness_atual)
             
             if fitness_atual < melhor_fitness:
                 melhor_global = melhor_atual
@@ -387,18 +390,26 @@ class OtimizadorRotas:
                 ultima_melhoria = geracao
                 
                 if geracao % 100 == 0:
-                    print(f"Geracao {geracao}: Fitness = {melhor_fitness}")
+                    print(f"Geração {geracao}: Fitness = {melhor_fitness}")
             
-            # CRITÉRIO DE PARADA PARA PROBLEMAS GRANDES
-            if num_pontos > 50 and geracao - ultima_melhoria > 200 and geracao > 500:
-                print(f"Convergencia antecipada na geracao {geracao}")
-                break
+            # CRITÉRIO DE PARADA DINÂMICO - MAIS PERMISSIVO
+            if num_pontos > 20:
+                # Se não houve melhoria por muitas gerações, aplicar perturbação
+                if geracao - ultima_melhoria > 400:  # Aumentado de 300 para 400
+                    # Perturbar apenas parte da população
+                    print(f"Aplicando perturbação controlada na geração {geracao}")
+                    for i in range(num_elite + 1, len(populacao)):
+                        if random.random() < 0.3:  # Apenas 30% da população
+                            populacao[i] = mutacao_scramble(populacao[i].copy())
+                    
+                    # Reiniciar contador
+                    ultima_melhoria = geracao
+                
+                # Parar se convergiu e passou do ponto de melhoria
+                if geracao > 1000 and geracao - ultima_melhoria > 600:  # Mais tolerante
+                    print(f"Convergência estabelecida na geração {geracao}")
+                    break
 
-        # FASE FINAL DE REFINAMENTO
-        print("Aplicando refinamento final...")
-        melhor_global = busca_local_2opt(melhor_global)
-        melhor_fitness = fitness(melhor_global)
-        
         print(f"MELHOR FITNESS FINAL: {melhor_fitness}")
         
         # Converter rota para formato de saída
