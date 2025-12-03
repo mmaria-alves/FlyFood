@@ -2,80 +2,103 @@
   <img src="imagens/flyfood icon.png" alt="FlyFood Logo" width="200"/>
 </p>
 
-<h1 align="center">🚚 FlyFood – Otimizador de Rotas de Entrega</h1>
+<h1 align="center">🚁 FlyFood – Otimizador de Rotas de Entrega por Drones</h1>
 
+<p align="center">
+  <em>Aplicação de Algoritmos Genéticos ao Problema do Caixeiro Viajante</em>
+</p>
 
+---
 
-# 📋 Sobre o Projeto
-O FlyFood é uma empresa de entregas rápidas utilizando drones e que, contém uma aplicação inteligente de otimização de rotas de entrega desenvolvida para resolver o problema do Caixeiro Viajante (TSP - Traveling Salesman Problem) aplicado ao contexto de entregas. O sistema calcula a rota mais eficiente entre múltiplos pontos de entrega, minimizando o custo total do percurso.
+## 📋 Sobre o Projeto
+Com o crescimento acelerado dos centros urbanos e a demanda crescente por entregas rápidas e eficiemtes, a logística moderna enfrenta desafios cada vez mais complexos na otimização de rotas de distribuição. Nesse contexto, o projeto **FlyFood** propõe uma solução inovadora ao aplicar **Algoritmos Genéticos (AGs)** na otimização de rotas de entrega por drones, abordando o clássico **Problema do Caixeiro Viajante (TSP)**. Esse trabalho integra conceitos fundamentais de **otimização computacional**, **estrutura de dados** e **análise de algoritmos**, transformando conhecimento teórico em uma ferramenta tecnológica com potencial de aplicação prática em sistemas logísticos inteligentes.
+
+---
 
 # 🎯 Funcionalidades Principais
-📊 Leitura de Matrizes: Carrega matrizes de entrega a partir de arquivos de texto
+📊 **Leitura de Dados** - Carrega instâncias do TSP a partir de arquivos de texto estruturados
 
-🧮 Algoritmo de Otimização: Implementa o algoritmo do Caixeiro Viajante para encontrar a rota ótima
+🧬 **Algoritmo Genético** - Implementa otimização por AGs para a solução do Problema do Caixeiro Viajante (TSP)
 
-🎨 Interface Moderna: GUI intuitiva e responsiva com design contemporâneo
+🎨 **Interface Gráfica** - GUI desenvolvida para interação intuitiva e responsiva com design contemporâneo
 
-📈 Visualização de Resultados: Exibe a rota calculada e o custo total de forma clara
+📈 **Visualização de Resultados** - Apresenta a rota otimizada e custo total calculado pelo algoritmo
 
-💾 Gerenciamento de Arquivos: Sistema integrado para carregamento de dados
+💾 **Gerenciamento de Instâncias** - Sistema de carregamento de matrizes de distâncias e coordenadas das cidades
 
+---
 
+## 📦 Instalação e Dependências 
 
-# 📦 Instalação e Dependências 
-• Python 3.8 ou superior
+### Requisitos do Sistema
+- **Python** 3.8 ou superior
+- **Sistema operacional:** Windows, Linux ou macOS
 
-• Sistema operacional: Windows, Linux ou macOS
+### Bibliotecas Necessárias
 
-# •  Bibliotecas Necessárias
-Framework GUI
+#### Framework GUI
+![PySide6](https://img.shields.io/badge/PySide6-Qt%20for%20Python-green?style=for-the-badge&logo=qt)
+```bash
+pip install PySide6
+```
 
-![PySide6](https://img.shields.io/badge/PySide6-Qt%20for%20Python-green?style=for-the-badge&logo=qt)   | pip install PySide6 
+#### Bibliotecas Padrão Python
+![sys](https://img.shields.io/badge/sys-Python%20Stdlib-lightgrey?style=for-the-badge&logo=python)
+![os](https://img.shields.io/badge/os-Python%20Stdlib-lightgrey?style=for-the-badge&logo=python)
+![typing](https://img.shields.io/badge/typing-Python%20Stdlib-lightgrey?style=for-the-badge&logo=python)
+![random](https://img.shields.io/badge/random-Python%20Stdlib-lightgrey?style=for-the-badge&logo=python)
+![time](https://img.shields.io/badge/time-Python%20Stdlib-lightgrey?style=for-the-badge&logo=python)
 
-Bibliotecas padrão (já incluídas no Python)
-
-![sys](https://img.shields.io/badge/sys-Python%20Stdlib-lightgrey?style=for-the-badge&logo=python)     | import sys
-
-![os](https://img.shields.io/badge/os-Python%20Stdlib-lightgrey?style=for-the-badge&logo=python)       | import os 
-
-![typing](https://img.shields.io/badge/typing-Python%20Stdlib-lightgrey?style=for-the-badge&logo=python) | from typing import List, Dict, Tuple
-
-![itertools](https://img.shields.io/badge/itertools-Python%20Stdlib-lightgrey?style=for-the-badge&logo=python) | import itertools 
-
-![time](https://img.shields.io/badge/time-Python%20Stdlib-lightgrey?style=for-the-badge&logo=python)  | import time
-
-
-# Fluxo de Uso
-Carregar Matriz: Clique em "📁 Carregar Matriz" e selecione seu arquivo
-
-Visualizar Dados: A matriz será exibida na tabela com destaque colorido
-
-Calcular Rota: Clique em "📊 Calcular Melhor Rota"
-
-Analisar Resultados: Veja a rota ótima e custo total calculados
+---
 
 
-# 🧮 Algoritmo Implementado
-Problema do Caixeiro Viajante (TSP)
-→ O FlyFood resolve o TSP usando força bruta com permutações, considerando:
+## 🚀 Fluxo de Uso
 
-→ Distância Manhattan: |x1-x2| + |y1-y2|
+1. **Carregar Matriz** → Clique em "📁 Carregar Matriz" e selecione seu arquivo
+2. **Visualizar Dados** → A matriz de distâncias será exibida na tabela com destaque Visualizar
+3. **Calcular Rota** → Clique em "📊 Calcular Melhor Rota" para executar o algoritmo Genético
+4. **Analisar Resultados** → Visualize a rota ótima encontrada, seu custo total calculado e outras informaçoes relacionadas
 
-→ Ponto fixo de origem: Sempre inicia e termina em 'R'
+---
 
-→ Otimização completa: Testa todas as permutações possíveis
+## 🧬 Algoritmo Implementado
 
-Complexidade
+### Algoritmos Genéticos aplicados ao TSP
 
-→ Tempo: O(n!) para n pontos de entrega
+O **FlyFood** utiliza Algoritmos Genéticos com as seguintes características: 
 
-→ Espaço: O(n²) para armazenar a matriz
+✅ **Operador de Cruzamento:** Order Crossover (OX) que preserva a ordem relativa dos elementos
 
-Nota: Ideal para até ~10 pontos de entrega devido à complexidade fatorial.
+✅ **Avaliação de Aptidão:** Minimização da distância total percorrida na rota
 
+✅ **Seleção:** Estratégias evolutivas para convergência à solução ótima
 
-# 📚 Artigo do Projeto
-🔗 Leia o artigo completo sobre o desenvolvimento do FlyFood:(link será adicionado posteriormente) 
+✅ **Validação:** Testes realizados na instância **brazil58** da TSPLib (58 cidades brasileiras)
+
+### Complexidade Computacional
+- **Espaço:** O(n²) para armazenar a matriz de distância
+- **Escalabilidade:** Adequado para instâncias de médio a grande porte
+
+> **Nota:** O uso de Algoritmos Genéticos permite encontrar soluções de alta qualidade em tempo computacional viável, mesmo para instâncias complexas do TSP.
+
+---
+
+## 📊 Resultados
+
+Os testes realizados comprovaram que o algoritmo é capaz de identificar corretamente a melhor rota da instância **brazil58**, demonstrando:
+
+- ✓ Convergência eficiente para soluções ótimas ou próximas do ótimo
+- ✓ Robustez na preservação da ordem de visita às cidades
+- ✓ Aplicabilidade prática em cenários de logística urbana
+
+---
+
+## 📚 Documentação Acadêmica
+
+🔗 **Artigo completo sobre o desenvolvimento do FlyFood:**  
+*(Link será adicionado posteriormente)*
+
+---
 
 
 # 📞 Suporte
@@ -84,14 +107,14 @@ Se tiver dúvidas, sugestões ou encontrar algum problema, fale com a gente:
 
  [![Email](https://img.shields.io/badge/Email-Contato%20FlyFood-red?style=for-the-badge&logo=gmail)](mailto:flyfood.com.br@gmail.com)
 
- ## 💻 Projeto realizado por
+---
 
-[Laura](https://github.com/mlcordeiro) • [Maria Eduarda](https://github.com/mmaria-alves)  • [Ana Clara](https://github.com/eianaxz) • [Filipe](https://github.com/nilipe)
+ ## 💻 Desenvolvedores
 
+[Ana Clara](https://github.com/eianaxz) • [Maria Eduarda](https://github.com/mmaria-alves)  • [Laura](https://github.com/mlcordeiro) • [Filipe](https://github.com/nilipe)
 
+---
 
-
-
-
-
-
+<p align="center">
+  <em>Desenvolvido como projeto acadêmico de otimização e algoritmos</em>
+</p>
